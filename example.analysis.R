@@ -23,8 +23,6 @@ data("Groceries")
 summary(Groceries)
 inspect(head(Groceries,10))
 
-rules <- apriori(Groceries,parameter=list(supp = 0.001, conf=0.8))
-
 # plot the 'count' of each grocery item appearing in the dataset,
 #from most common on down, but only show the first 20
 itemFrequencyPlot(Groceries,topN=20,type="absolute")
