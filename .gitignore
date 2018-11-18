@@ -3,3 +3,4 @@
 .RData
 .Ruserdata
 bakery.sales.Rproj
+packrat/lib*/

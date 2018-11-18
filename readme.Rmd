@@ -1,0 +1,158 @@
+---
+title: 'Bakery Sales Data Analysis'
+author: 'Edward Yu'
+date: '2018-11-17'
+output:
+  html_document:
+    number_sections: true
+    toc: true
+    fig_width: 7
+    fig_height: 4.5
+    theme: readable
+    highlight: tango
+---
+
+# Introduction
+What we have here is a few months worth of sales data from a bakery. 
+The data was pulled from a now deleted Kaggle source, https://www.kaggle.com/deleted-dataset/50231.
+
+We'll start with a little exploratory analysis followed by a Market Basket Analysis.
+
+## Load packages, check data
+
+Let's install the required packages we'll be using.
+
+```{r, message=FALSE,warning=FALSE}
+if (!require(tibble)) install.packages("tibble")
+if (!require(tidyverse)) install.packages("tidyverse")
+if (!require(lubridate)) install.packages("lubridate")
+if (!require(ggridges)) install.packages("ggridges")
+if (!require(arulesViz)) install.packages("arulesViz")
+if (!require(arules)) install.packages("arules")
+if (!require(viridis)) install.packages("viridis")
+if (!require(ggthemes)) install.packages("ggthemes")
+if (!require(gridExtra)) install.packages("gridExtra")
+library(ggthemes)
+library(gridExtra)
+library(tibble)
+library(tidyverse)
+library(lubridate)
+library(ggridges)
+library(viridis)
+library(arules)
+library(arulesViz)
+```
+
+And get an idea of what our data holds, and the structure of the data.
+```{r,warning=FALSE}
+x <- read.csv("data/BreadBasket_DMS.csv") %>%
+  mutate(Date=as.Date(Date),
+         Time=hms(Time)
+         )
+summary(x)
+glimpse(x)
+```
+
+Right off the bat we see our time period is relatively narrow: taken between the dates of 
+2016-10-30 and 2017-04-09. In other words, we have only 161 days worth of data.
+```{r}
+difftime(x$Date[nrow(x)],x$Date[1])
+```
+
+We also see most sales happen around 12:45pm and coffee is by far the most popular item.
+
+# Exploration
+
+Let's see what we can glean looking at various manipulations of the data we have available.
+
+## Item frequency
+
+```{r}
+x %>% 
+  group_by(Item) %>% 
+  summarise(Count = n()) %>% 
+  arrange(desc(Count)) %>%
+  slice(1:10) %>% # keep the top 10 items
+  ggplot(aes(x=reorder(Item,Count),y=Count,fill=Item))+
+  geom_bar(stat="identity")+
+  coord_flip()+
+  ggtitle("Most popular items")+
+  theme(legend.position="none")
+```
+
+No real surprises with frequency, although the `NONE` is slightly odd.
+
+## Sales vs Date
+```{r}
+# Line items sold per day
+x %>% 
+  group_by(Date) %>% 
+  summarise(Count= n()) %>% 
+  mutate(Day=wday(Date,label=T)) %>% 
+  ggplot(aes(x=Date,y=Count,fill=Day))+
+  theme_fivethirtyeight()+
+  geom_bar(stat="identity")+
+  ggtitle("Line items sold per day")+
+  scale_fill_viridis(discrete=TRUE)+
+  theme(legend.position="none")
+```
+
+Plotting total line items sold per day shows some obvious peaks and valleys
+
+
+```{r}
+# Total line items sold per weekday
+x %>% 
+  mutate(Day = wday(Date,label=T)) %>% 
+  group_by(Day) %>% 
+  summarise(Count= n()) %>% 
+  ggplot(aes(x=Day,y=Count,fill=Day))+
+  theme_fivethirtyeight()+
+  geom_bar(stat="identity")+
+  ggtitle("Total line items sold per weekday")+
+  theme(legend.position="none")
+```
+
+```{r}
+# Total unique transactions per weekday
+x %>% 
+  mutate(wday=wday(Date,label=T)) %>% 
+  group_by(wday,Transaction) %>% 
+  summarise(n_distinct(Transaction)) %>% 
+  summarise(Count=n()) %>% 
+  ggplot(aes(x=wday,y=Count,fill=wday))+
+  theme_fivethirtyeight()+
+  geom_bar(stat="identity")+
+  ggtitle("Unique transactions per weekday")+
+  theme(legend.position="none")
+```
+
+```{r}
+# Top 50 sales days per weekday
+x %>% 
+  group_by(Date) %>% 
+  summarise(Count= n()) %>% 
+  arrange(desc(Count)) %>% 
+  slice(1:50) %>% 
+  mutate(wday = wday(Date,label=T)) %>% 
+  ggplot(aes(x=wday,y=Count,fill=wday))+
+  theme_fivethirtyeight()+
+  geom_bar(stat="identity")+
+  ggtitle("Top 50 sales days by weekday")+
+  theme(legend.position="none")
+
+```
+
+
+
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
