@@ -1,7 +1,7 @@
 if (!require(tibble)) install.packages("tibble")
 library(tibble)
-if (!require(lazyeval)) install.packages("lazyeval")
-library(lazyeval)
+# if (!require(lazyeval)) install.packages("lazyeval")
+# library(lazyeval)
 if (!require(tidyverse)) install.packages("tidyverse")
 library(tidyverse)
 if (!require(lubridate)) install.packages("lubridate")
@@ -14,11 +14,10 @@ if (!require(gridExtra)) install.packages("gridExtra")
 library(gridExtra)
 if (!require(ggridges)) install.packages("ggridges")
 library(ggridges)
-
-if (!require(arulesViz)) install.packages("arulesViz")
-library(arulesViz)
 if (!require(arules)) install.packages("arules")
 library(arules)
+if (!require(arulesViz)) install.packages("arulesViz")
+library(arulesViz)
 
 setwd("/home/e/R/bakery.sales/")
 # setwd("C:/Users/e/Documents/R/bakery.sales.MBA")
@@ -245,12 +244,11 @@ inspect(rules)
 plot(rules, measure=c("support","lift"), shading="confidence")
 plot(rules, measure=c("support","lift"), shading="confidence",interactive = T)
 
-plot(rules, method="graph")
+plot(rules, method="graph",interactive = T)
 
 plot(rules, method="graph", control=list(layout=igraph::in_circle()))
 
 plot(rules, method="grouped")
-
 plot(rules, method="paracoord", control=list(reorder=TRUE))
 
 plot(rules, method = "two-key plot")
