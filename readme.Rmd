@@ -1,5 +1,5 @@
 ---
-title: 'Bakery Sales Data Analysis'
+title: 'Bakery Transaction Data Analysis'
 author: 'Edward Yu'
 date: '2018-11-17'
 output:
@@ -14,32 +14,31 @@ output:
 
 # Introduction
 What we have here is a few months worth of sales data from a bakery. 
-The data was pulled from a now deleted Kaggle source, https://www.kaggle.com/deleted-dataset/50231.
+The original dataset was put on Kaggle but deleted: https://www.kaggle.com/deleted-dataset/50231. Fortunately someone reuploaded the data: https://www.kaggle.com/sulmansarwar/transactions-from-a-bakery.
 
-We'll start with a little exploratory analysis followed by a Market Basket Analysis.
+What we'll be doing in my first kernel is a little exploratory analysis followed by a Market Basket Analysis.
 
 ## Load packages, check data
-
 Let's install the required packages we'll be using.
 
 ```{r, message=FALSE,warning=FALSE}
 if (!require(tibble)) install.packages("tibble")
-if (!require(tidyverse)) install.packages("tidyverse")
-if (!require(lubridate)) install.packages("lubridate")
-if (!require(ggridges)) install.packages("ggridges")
-if (!require(arulesViz)) install.packages("arulesViz")
-if (!require(arules)) install.packages("arules")
-if (!require(viridis)) install.packages("viridis")
-if (!require(ggthemes)) install.packages("ggthemes")
-if (!require(gridExtra)) install.packages("gridExtra")
-library(ggthemes)
-library(gridExtra)
 library(tibble)
+if (!require(tidyverse)) install.packages("tidyverse")
 library(tidyverse)
+if (!require(lubridate)) install.packages("lubridate")
 library(lubridate)
-library(ggridges)
+if (!require(viridis)) install.packages("viridis")
 library(viridis)
+if (!require(ggthemes)) install.packages("ggthemes")
+library(ggthemes)
+if (!require(gridExtra)) install.packages("gridExtra")
+library(gridExtra)
+if (!require(ggridges)) install.packages("ggridges")
+library(ggridges)
+if (!require(arules)) install.packages("arules")
 library(arules)
+if (!require(arulesViz)) install.packages("arulesViz")
 library(arulesViz)
 ```
 
@@ -62,11 +61,9 @@ difftime(x$Date[nrow(x)],x$Date[1])
 We also see most sales happen around 12:45pm and coffee is by far the most popular item.
 
 # Exploration
-
 Let's see what we can glean looking at various manipulations of the data we have available.
 
 ## Item frequency
-
 ```{r}
 x1 <- x %>% 
   group_by(Item) %>% 
@@ -82,13 +79,12 @@ x1
 ```
 
 No real surprises with frequency, although the `NONE` is slightly odd.
-It should be noted that when using `count` we're adding all instances of that particular item. We are not discriminating between different sales receipts. So if one person has ordered 5 coffees, we count coffee 5 times rather than once.
+It should be noted that when using `count` we're adding all instances of that particular item. We are not discriminating between different sales receipts. So if one person has ordered 5 coffees, we count coffee 5 times rather than once. Right now this doesn't bother me, we can look at it later on.
 
 # Sales over time
-We'll explore item sales over various amounts of time.
+We have an idea of what we're selling so now let's plot it against our various measures of time. Each transaction lists both time and date, we'll take a large step back and look at sales over all time.
 
-## Days
-Let's get an idea of how many line items are sold throughout the datasets history.
+## Sales over time
 ```{r}
 # Line items sold per day
 x2 <- x %>% 
@@ -105,7 +101,7 @@ x2
 
 Plotting total line items sold per day shows some obvious peaks and valleys. Saturday is the big sales day for this bakery, followed by Sunday.
 
-Let's take a closer look.
+Let's zoom in a little bit to take a closer look. Let's try a weekly view by stacking total sales based on weekday sold.
 
 ```{r}
 # Total line items sold per weekday
@@ -121,9 +117,30 @@ x3 <- x %>%
 x3
 ```
 
-We sum all sales ordered by day and confirm the general pattern we saw above: our top sales days are on Saturdays, with Sundays and Fridays following behind. Mondays through Thursdays are all roughly similar in total line items sold.
+We confirm the general pattern we saw above: our top sales days are on Saturdays, with Sundays and Fridays following behind. Mondays through Thursdays are all roughly similar in total line items sold. Essentially we've averaged all values creating less drastic peaks as we saw above.
 
-We've been talking about only line items so far, let's see if anything at all changes when we filter by unique transactions per day rather than line items.
+Maybe we should try making the differences more drastic for easier comparison?
+One approach might be to filter for top sales days first, and then add all total line items sold by weekday.
+
+```{r}
+# Top 50 transactions days per weekday
+x6 <- x %>% 
+  group_by(Date) %>% 
+  summarise(Count= n()) %>% 
+  arrange(desc(Count)) %>% 
+  slice(1:50) %>% 
+  mutate(wday = wday(Date,label=T)) %>% 
+  ggplot(aes(x=wday,y=Count,fill=wday))+
+  theme_fivethirtyeight()+
+  geom_bar(stat="identity")+
+  ggtitle("Top 50 sales days by weekday")+
+  theme(legend.position="none")
+x6
+```
+
+It's clear that Saturdays are much more likely to be top sales days, followed by Sundays and Fridays. This graph could be slightly misleading though and if not interepreted correctly could lead to some false conclusions about how slow weekdays are when compared to the weekends (they aren't as slow as this comparison makes out).
+
+Let's change direction. Remember we talked about line items versus unique sales? Let's try filtering for distinct transactions and see how that changes things.
 
 ```{r}
 # Total unique transactions per weekday
@@ -140,9 +157,9 @@ x4 <- x %>%
 x4
 ```
 
-In general the trend has remained, with Saturday still at the top with Sunday and Friday close behind. We do have a large difference in scale because not every person buys only one item.
+This is a more fare representation of 'business' throughout the week. Saturday is still the top dog. Sunday falls behind Friday, however. We might guess that on Sunday we have more generous customers buying for their friends, or even that Sunday tends to be a day when customers buy more than 1 or 2 items.
 
-That does bring to mind a good question, how many items to people purchase on average? Let's plot this as we've done above to see if there are any differences throughout the week.
+That does bring to mind a good question, how many items to people purchase on average? 
 ```{r}
 x5.1 <- x %>% 
   mutate(Day = wday(Date,label=T)) %>% 
@@ -164,32 +181,12 @@ ggplot(x5.3,aes(x=Day,y=Items.Trans,fill=Day))+
   theme_fivethirtyeight()+
   geom_bar(stat="identity")+
   ggtitle("Total unique transactions per weekday")+
-  theme(legend.position="none")
+  theme(legend.position="none")+
+  geom_text(aes(label=round(Items.Trans,1)), vjust=2)
+
 ```
 
-We simply divide total line items by unique transactions to get our items per unique transaction. We can see, in general, two items are the norm with people choosing between 2 and 3 items on Sunday.
-
-Okay let's take a step back and play with line items sold per day. If we filter for top sales days, which days are we most likely to get?
-
-```{r}
-# Top 50 sales days per weekday
-x6 <- x %>% 
-  group_by(Date) %>% 
-  summarise(Count= n()) %>% 
-  arrange(desc(Count)) %>% 
-  slice(1:50) %>% 
-  mutate(wday = wday(Date,label=T)) %>% 
-  ggplot(aes(x=wday,y=Count,fill=wday))+
-  theme_fivethirtyeight()+
-  geom_bar(stat="identity")+
-  ggtitle("Top 50 sales days by weekday")+
-  theme(legend.position="none")
-x6
-```
-
-It becomes much more clear that Saturdays and Sundays are the busiest days, with Tuesdays and Wednesdays as the slow days.
-
-Let's take an even more detailed look by zooming into the time scale.
+As we thought, 2 items per purchase is the norm, with between 2 and 3 items purchased on Sundays.
 
 ## Hours
 We do a simple line items sold per hour plot and unsurprisingly see that most items are sold around lunch time.
@@ -223,7 +220,7 @@ x8 <- x %>%
 x8
 ```
 
-We really don't see much of a differece beside scale. Again, let's see how many items are bought in each transaction.
+We really don't see much of a differece besides scale. Again, let's see how many items are bought with each transaction.
 ```{r}
 x9.1 <- x %>% 
   mutate(Hour = as.factor(hour(Time)))%>% 
@@ -251,8 +248,11 @@ x9 <-
 x9
 ```
 
-People buy the most items per transaction between 10am and 5pm. Let's see if we can visualize transaction density per hour for all days of the week using a ridge plot
-```{r}
+People buy the most items per transaction between 10am and 5pm. 
+
+Let's see if we can visualize transaction density per hour for all days of the week using a ridge plot
+
+```{r,message=FALSE}
 x10 <- x %>% 
   mutate(Hour=as.factor(hour(Time)),
          Day=wday(Date,label=T)) %>% 
@@ -272,7 +272,6 @@ The ridge plot gives a nice summary of what we've seen in the above bar charts. 
 It's time for a new take on the data using Market Basket Analysis.
 
 # Market Basket Analysis
-
 Let's import our transaction data to the appropriate format and check it out.
 ```{r}
 y <- read.transactions("data/BreadBasket_DMS.csv",
@@ -382,7 +381,25 @@ plot(rules, method="graph")
 The above graph is not useful in our situation but would have allowed us to visualize clusters of different RHS items if they existed. In our case almost everyone buys coffee with another item, so Coffee is the only clustered item. In a grocery store we might see many different clusters characterizing different shoppers.
 
 ```{r}
-plot(rules, method="graph", control=list(layout=igraph::in_circle()))
 plot(rules, method="grouped")
+```
+```{r}
 plot(rules, method="paracoord", control=list(reorder=TRUE))
 ```
+
+# Conclusions
+Taking a cursory look at the data and doing some relatively simple graphical analyses, we were able to discern which days were busiest, and at what times throughout the day that most transactions were taking place.
+```{r}
+x10
+```
+
+This data might be useful when scheduling staff and determining when additional staff is required, or when only minimal staff is needed. Of course, the bakery had probably already figured this out in a couple weeks of business. The graphical representation does give it a nice concrete feeling.
+
+More useful is the number or items per transaction throughout the day.
+```{r}
+x9
+````
+As a business we obviously want to sell more items. Some potential lines of action might be to incentivise the purhcase of additional items before 10am and after 5pm. Between the hours of 10am and 5pm we want to incentivise purchasing a 3rd item.
+
+The Market Basket Analysis shows that {Toast} => {Coffee} is a common occurence. Also that {Cake, Sandwich} => {Coffee} has high lift and confidence but low support. We might increase the likelihood of a 3rd item purchased by introducing a Toast/Cake/Coffee or a Sandwich/Cake/Coffee special at discounted price.
+
