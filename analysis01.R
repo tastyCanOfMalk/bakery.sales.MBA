@@ -1,5 +1,7 @@
 if (!require(tibble)) install.packages("tibble")
 library(tibble)
+if (!require(lazyeval)) install.packages("lazyeval")
+library(lazyeval)
 if (!require(tidyverse)) install.packages("tidyverse")
 library(tidyverse)
 if (!require(lubridate)) install.packages("lubridate")
@@ -18,8 +20,8 @@ library(arulesViz)
 if (!require(arules)) install.packages("arules")
 library(arules)
 
-setwd("/home/e/R/bakery.sales/")
-# setwd("C:/Users/e/Documents/R/bakery.sales.MBA")
+# setwd("/home/e/R/bakery.sales/")
+setwd("C:/Users/e/Documents/R/bakery.sales.MBA")
 
 # Import our csv and look at the structure
   # Some things to note: each item occupies one row, 
@@ -195,7 +197,7 @@ x10 <- x %>%
   theme_fivethirtyeight()+
   ggtitle("Transaction density per Hour by Day")+
   theme(legend.position="none")+
-  geom_density_ridges_gradient(scale=2, rel_min_height=0.01)+
+  geom_density_ridges_gradient(scale=3, rel_min_height=0.01)+
   scale_fill_viridis(option="magma")
 x10
 

@@ -295,13 +295,29 @@ itemFrequencyPlot(y,topN=5,type="absolute")
 
 Now before we perform our MBA we need to determine reasonable values for the support and confidence values. 
 
-_Support_ An itemset with high support means it appears in our transactions frequently. For example, coffee probably has very high support.
+__Support:__ An itemset with high support means it appears in our transactions frequently. High confidence is direclty related to the frequency an item appears. For example, coffee probably has very high support.
 
-*Confidence:* Is the strength of our association rule. For example, a confidence of 1 implies that our  
+__Confidence:_*__ Is the strength of our association rule. For example, a confidence of 1 implies that when the LHS item is purchased, the RHS item is purchased 100% of the time.
 
-soskdfdjfj
+So let's pin down our `support` value first. 
+```{r}
+summary(itemFrequency(y))
+```
 
+Remember, item frequency is directly related to support. We can see the distribution of values above, with the max frequency at 0.4820079. This is probably coffee which we saw above appears greater than 40% of the time in purchases. 
 
+Since our maximum support is 48%, let's pick a value around 30% to start. We can find this value by dividing 30 by the total amount of transactions.
+```{r}
+30/length(y)
+```
 
+Our support value will be roughly 0.0045. So what about confidence? Let's use a cointoss as inspiration. Remember that confidence is the likelihood, having purchased the item on the LHS, that the item on the RHS will be purchased in addition. Let's go with 50%, or a value of 0.5.
+
+```{r}
+rules <- apriori(y,parameter=list(support=0.0045,confidence=.5))
+rules
+```
+
+We're give a set of 20 rules, which is quite managable.
 
 
