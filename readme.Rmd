@@ -318,6 +318,16 @@ rules <- apriori(y,parameter=list(support=0.0045,confidence=.5))
 rules
 ```
 
-We're give a set of 20 rules, which is quite managable.
+We're give a set of 20 rules, which is quite managable. Let's take a look.
 
+```{r}
+inspect(head(rules,by="support",n=10))
+```
 
+Cake, pastry, and sandwich are most commonly bought in tandem with Coffee. Oddly, Juice is also frequently bought with Coffee... We can only assume that this is due multiple people in a party and hopefully not that people are drinking both.
+
+```{r}
+inspect(head(rules,by="confidence",n=10))
+```
+
+More interesting are the association rules. 
