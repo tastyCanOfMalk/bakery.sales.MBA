@@ -68,7 +68,7 @@ Let's see what we can glean looking at various manipulations of the data we have
 ## Item frequency
 
 ```{r}
-x %>% 
+x1 <- x %>% 
   group_by(Item) %>% 
   summarise(Count = n()) %>% 
   arrange(desc(Count)) %>%
@@ -76,16 +76,22 @@ x %>%
   ggplot(aes(x=reorder(Item,Count),y=Count,fill=Item))+
   geom_bar(stat="identity")+
   coord_flip()+
-  ggtitle("Most popular items")+
+  ggtitle("Most popular line items")+
   theme(legend.position="none")
+x1
 ```
 
 No real surprises with frequency, although the `NONE` is slightly odd.
+It should be noted that when using `count` we're adding all instances of that particular item. We are not discriminating between different sales receipts. So if one person has ordered 5 coffees, we count coffee 5 times rather than once.
 
-## Sales vs Date
+# Sales over time
+We'll explore item sales over various amounts of time.
+
+## Days
+Let's get an idea of how many line items are sold throughout the datasets history.
 ```{r}
 # Line items sold per day
-x %>% 
+x2 <- x %>% 
   group_by(Date) %>% 
   summarise(Count= n()) %>% 
   mutate(Day=wday(Date,label=T)) %>% 
@@ -93,16 +99,17 @@ x %>%
   theme_fivethirtyeight()+
   geom_bar(stat="identity")+
   ggtitle("Line items sold per day")+
-  scale_fill_viridis(discrete=TRUE)+
-  theme(legend.position="none")
+  scale_fill_viridis(discrete=TRUE)
+x2
 ```
 
-Plotting total line items sold per day shows some obvious peaks and valleys
+Plotting total line items sold per day shows some obvious peaks and valleys. Saturday is the big sales day for this bakery, followed by Sunday.
 
+Let's take a closer look.
 
 ```{r}
 # Total line items sold per weekday
-x %>% 
+x3 <- x %>% 
   mutate(Day = wday(Date,label=T)) %>% 
   group_by(Day) %>% 
   summarise(Count= n()) %>% 
@@ -111,11 +118,16 @@ x %>%
   geom_bar(stat="identity")+
   ggtitle("Total line items sold per weekday")+
   theme(legend.position="none")
+x3
 ```
+
+We sum all sales ordered by day and confirm the general pattern we saw above: our top sales days are on Saturdays, with Sundays and Fridays following behind. Mondays through Thursdays are all roughly similar in total line items sold.
+
+We've been talking about only line items so far, let's see if anything at all changes when we filter by unique transactions per day rather than line items.
 
 ```{r}
 # Total unique transactions per weekday
-x %>% 
+x4 <- x %>% 
   mutate(wday=wday(Date,label=T)) %>% 
   group_by(wday,Transaction) %>% 
   summarise(n_distinct(Transaction)) %>% 
@@ -125,11 +137,43 @@ x %>%
   geom_bar(stat="identity")+
   ggtitle("Unique transactions per weekday")+
   theme(legend.position="none")
+x4
 ```
+
+In general the trend has remained, with Saturday still at the top with Sunday and Friday close behind. We do have a large difference in scale because not every person buys only one item.
+
+That does bring to mind a good question, how many items to people purchase on average? Let's plot this as we've done above to see if there are any differences throughout the week.
+```{r}
+x5.1 <- x %>% 
+  mutate(Day = wday(Date,label=T)) %>% 
+  group_by(Day) %>% 
+  summarise(Count= n()) 
+
+x5.2 <- x %>% 
+  mutate(wday=wday(Date,label=T)) %>% 
+  group_by(wday,Transaction) %>% 
+  summarise(n_distinct(Transaction)) %>% 
+  summarise(Count=n())
+
+x5.3 <- data.frame(x5.1, # Days, total items
+                   x5.2[2], # unique transactions
+                   x5.1[2]/x5.2[2])  # items per unique transaction
+colnames(x5.3) <- c("Day","Line","Unique","Items.Trans")
+
+ggplot(x5.3,aes(x=Day,y=Items.Trans,fill=Day))+
+  theme_fivethirtyeight()+
+  geom_bar(stat="identity")+
+  ggtitle("Total unique transactions per weekday")+
+  theme(legend.position="none")
+```
+
+We simply divide total line items by unique transactions to get our items per unique transaction. We can see, in general, two items are the norm with people choosing between 2 and 3 items on Sunday.
+
+Okay let's take a step back and play with line items sold per day. If we filter for top sales days, which days are we most likely to get?
 
 ```{r}
 # Top 50 sales days per weekday
-x %>% 
+x6 <- x %>% 
   group_by(Date) %>% 
   summarise(Count= n()) %>% 
   arrange(desc(Count)) %>% 
@@ -140,19 +184,124 @@ x %>%
   geom_bar(stat="identity")+
   ggtitle("Top 50 sales days by weekday")+
   theme(legend.position="none")
-
+x6
 ```
 
+It becomes much more clear that Saturdays and Sundays are the busiest days, with Tuesdays and Wednesdays as the slow days.
 
+Let's take an even more detailed look by zooming into the time scale.
 
-
-
+## Hours
+We do a simple line items sold per hour plot and unsurprisingly see that most items are sold around lunch time.
 ```{r}
-
+# Line items sold per Hour
+x7 <- x %>%
+  mutate(Hour = as.factor(hour(x$Time))) %>% 
+  group_by(Hour) %>% 
+  summarise(Count=n()) %>% 
+  ggplot(aes(x=Hour,y=Count,fill=Hour))+
+  theme_fivethirtyeight()+
+  geom_bar(stat="identity")+
+  ggtitle("Line items sold per Hour")+
+  theme(legend.position="none")
+x7
 ```
 
-
+Can we learn anything about unique transactions, as we did above with the date data?
 ```{r}
-
+# Unique transactions per Hour
+x8 <- x %>% 
+  mutate(Hour = as.factor(hour(Time)))%>% 
+  group_by(Hour,Transaction) %>% 
+  summarise(n_distinct(Transaction)) %>% 
+  summarise(Count=n()) %>% 
+  ggplot(aes(x=Hour,y=Count,fill=Hour))+
+  theme_fivethirtyeight()+
+  geom_bar(stat="identity")+
+  ggtitle("Unique transactions per Hour")+
+  theme(legend.position="none")
+x8
 ```
+
+We really don't see much of a differece beside scale. Again, let's see how many items are bought in each transaction.
+```{r}
+x9.1 <- x %>% 
+  mutate(Hour = as.factor(hour(Time)))%>% 
+  group_by(Hour) %>% 
+  summarise(Count= n()) 
+
+x9.2 <- x %>% 
+  mutate(Hour = as.factor(hour(Time)))%>% 
+  group_by(Hour,Transaction) %>% 
+  summarise(n_distinct(Transaction)) %>% 
+  summarise(Count=n())
+
+x9.3 <- data.frame(x9.1, # Days, total items
+                   x9.2[2], # unique transactions
+                   x9.1[2]/x9.2[2])  # items per unique transaction
+colnames(x9.3) <- c("Hour","Line","Unique","Items.Trans")
+
+x9 <- 
+  ggplot(x9.3,aes(x=Hour,y=Items.Trans,fill=Hour))+
+  theme_fivethirtyeight()+
+  geom_bar(stat="identity")+
+  ggtitle("Total items per transaction per hour")+
+  theme(legend.position="none")+
+  geom_text(aes(label=round(Items.Trans,1)), vjust=2)
+x9
+```
+
+People buy the most items per transaction between 10am and 5pm. Let's see if we can visualize transaction density per hour for all days of the week using a ridge plot
+```{r}
+x10 <- x %>% 
+  mutate(Hour=as.factor(hour(Time)),
+         Day=wday(Date,label=T)) %>% 
+  group_by(Day,Hour,Transaction) %>% 
+  summarise(Count=n()) %>% 
+  ggplot(aes(x=Hour,y=Day,group=Day,fill=..density..))+
+  theme_fivethirtyeight()+
+  ggtitle("Transaction density per Hour by Day")+
+  theme(legend.position="none")+
+  geom_density_ridges_gradient(scale=2, rel_min_height=0.01)+
+  scale_fill_viridis(option="magma")
+x10
+```
+
+The ridge plot gives a nice summary of what we've seen in the above bar charts. Sunday and Saturday have the most transactions and show the most dense transaction peaks around 11pm. 
+
+It's time for a new take on the data using Market Basket Analysis.
+
+# Market Basket Analysis
+
+Let's import our transaction data to the appropriate format and check it out.
+```{r}
+y <- read.transactions("data/BreadBasket_DMS.csv",
+                       format="single",
+                       cols=c(3,4),
+                       sep=","
+                       )
+summary(y)
+```
+
+We see our most frequent items agree with what we found above. And that most transactions are either one or two items, including 3 lucky people who apparently bought for the entire office.
+
+If we want to visualize the frequent items using `arules` we can.
+We need to import our transaction data, and we can go ahead and reaffirm our previous findings by using the `itemFrequencyPlot` function to find the top 5 most popular items
+```{r}
+par(mfrow=c(1,2))
+itemFrequencyPlot(y,topN=5,type="relative")
+itemFrequencyPlot(y,topN=5,type="absolute")
+```
+
+Now before we perform our MBA we need to determine reasonable values for the support and confidence values. 
+
+_Support_ An itemset with high support means it appears in our transactions frequently. For example, coffee probably has very high support.
+
+*Confidence:* Is the strength of our association rule. For example, a confidence of 1 implies that our  
+
+soskdfdjfj
+
+
+
+
 
