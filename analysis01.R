@@ -20,8 +20,8 @@ library(arulesViz)
 if (!require(arules)) install.packages("arules")
 library(arules)
 
-# setwd("/home/e/R/bakery.sales/")
-setwd("C:/Users/e/Documents/R/bakery.sales.MBA")
+setwd("/home/e/R/bakery.sales/")
+# setwd("C:/Users/e/Documents/R/bakery.sales.MBA")
 
 # Import our csv and look at the structure
   # Some things to note: each item occupies one row, 
@@ -228,7 +228,7 @@ summary(itemFrequency(y))
 rules <- apriori(y,parameter=list(support=0.004,confidence=.5))
 # https://rawgit.com/mhahsler/Introduction_to_Data_Mining_R_Examples/master/chap6.html
 rules
-inspect(head(rules,by="support",n=30))
+inspect(head(rules,by="support",n=20))
 quality(rules) <- cbind(quality(rules),
                         interestMeasure(rules, measure=c("phi", "gini"),y)
                         )
@@ -236,13 +236,14 @@ inspect(head(rules,by="support"))
 inspect(head(rules,by="phi"))
 inspect(head(rules,by="gini"))
 inspect(head(rules,by="confidence",n=10))
-inspect(head(rules,by="lift",n=30))
+inspect(head(rules,by="lift",n=10))
 inspect(head(rules))
 inspect(rules)
 
 
 ## VISUALIZE
 plot(rules, measure=c("support","lift"), shading="confidence")
+plot(rules, measure=c("support","lift"), shading="confidence",interactive = T)
 
 plot(rules, method="graph")
 
@@ -257,12 +258,6 @@ plot(rules, method = "two-key plot", interactive=TRUE)
 # 3-order rules, convert to combination meal or something?
 
 plot(rules, method="matrix", measure="lift")
-
-
-#
-
-
-
 
 
 
