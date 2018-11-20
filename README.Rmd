@@ -309,7 +309,7 @@ itemFrequencyPlot(y,topN=5,type="absolute")
 ## Support and Confidence
 Now before we perform our MBA we need to determine reasonable values for the support and confidence values. 
 
-__Support:__ An itemset with high support means it appears in our transactions frequently. High confidence is direclty related to the frequency an item appears. For example, coffee probably has very high support.
+__Support:__ An itemset with high support means it appears in our transactions frequently. High confidence is direclty related to the frequency an item appears. For example, coffee probably has very high support. 
 
 __Confidence:_*__ Is the strength of our association rule. For example, a confidence of 1 implies that when the LHS item is purchased, the RHS item is purchased 100% of the time.
 
@@ -360,7 +360,7 @@ inspect(head(rules,by="lift"))
 ## Lift
 The lift measure is related closely to the confidence measure.
 
-__Lift__ is the ratio of *Confidence* to *Expected Confidence*
+__Lift__ is the ratio of *Confidence* to *Expected Confidence* = Number of transactions with RHS / total transactions.
 
 A lift ratio larger than 1.0 implies the relationship between LHS and RHS is significant and not simply chance. The larger the lift ratio, the more significant the relationship between LHS and RHS. Our lift values are not incredibly high, though high enough to rule out random chance.
 
