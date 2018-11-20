@@ -258,6 +258,15 @@ plot(rules, method = "two-key plot", interactive=TRUE)
 plot(rules, method="matrix", measure="lift")
 
 
+# It's also worth filtering LHS and RHS values
+options(digits=1)
+rules <- apriori(y,parameter=list(support=0.0003,confidence=.5))
+inspect(sort(subset(rules,subset=lhs %pin% 'Toast' & lhs %in% 'Cake'),
+             by = 'lift',
+             decreasing = T)[1:5])
+inspect(sort(subset(rules,subset=rhs %pin% 'Toast'),
+             by = 'lift',
+             decreasing = T)[1:5])
 
 
 # hmm but how do we know optimal support and confidence?
