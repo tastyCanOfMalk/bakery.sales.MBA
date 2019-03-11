@@ -8,7 +8,7 @@ output:
       highlight: tango
       toc: true
       toc_float:
-        collapsed: false
+        collapsed: true
       toc_depth: 3
       df_print: paged
       code_folding: show
@@ -19,19 +19,12 @@ output:
 # bibliography: bib.bib
 ---
 
-# Introduction
-What we have here is a few months worth of sales data from a bakery. 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo    = TRUE,
+                      error   = FALSE,
+                      message = FALSE,
+                      warning = FALSE)
 
-The original dataset was put on Kaggle but deleted: https://www.kaggle.com/deleted-dataset/50231.
-
-Fortunately someone reuploaded the data: https://www.kaggle.com/sulmansarwar/transactions-from-a-bakery.
-
-What we'll be doing in my first kernel is a little exploratory data analysis (EDA) followed by a Market Basket Analysis (MBA).
-
-## Load packages, check data
-Let's install the required packages we'll be using.
-
-```{r, message=FALSE,warning=FALSE}
 if (!require(tibble)) install.packages("tibble")
 library(tibble)
 if (!require(tidyverse)) install.packages("tidyverse")
@@ -50,31 +43,56 @@ if (!require(arules)) install.packages("arules")
 library(arules)
 if (!require(arulesViz)) install.packages("arulesViz")
 library(arulesViz)
+
+# clear history
+rm(list = ls())
+
+setwd("I:/Code-CAD/R/bakery.sales")
+```
+# Introduction
+What we have here is a few months worth of sales data from a bakery. 
+
+The original dataset was put on Kaggle but deleted: https://www.kaggle.com/deleted-dataset/50231.
+
+Fortunately, someone reuploaded the data here: https://www.kaggle.com/sulmansarwar/transactions-from-a-bakery.
+
+We'll first jump in with some general exploratory data analysis (EDA) followed by a more specific analysis using market basket analysis (MBA).
+
+## Packages used
+A list of packages utilized in this analysis:  
+
+```{r echo=F}
+(.packages())
 ```
 
-And get an idea of what our data holds, and the structure of the data.
-```{r,warning=FALSE}
-x <- read.csv("data/BreadBasket_DMS.csv") %>%
+
+## Preliminary data peaking
+Let's get a quick idea of what our data holds and the structure thereof before embarking too deep in our analysis.  
+
+Right off the bat we see our time period of data collection is quite narrow: 161 days worth of data, only. We can also see the most popular transaction time is around 12:40pm, with Coffee being the most purchased item.  
+
+```{r}
+# import data
+x <- read_csv("data/BreadBasket_DMS.csv") %>%
   mutate(Date=as.Date(Date),
-         Time=hms(Time)
-         )
+         Time=hms(Time),
+         Item=as.factor(Item))
+
 summary(x)
 glimpse(x)
-```
 
-Right off the bat we see our time period is relatively narrow: taken between the dates of 2016-10-30 and 2017-04-09. 
-
-In other words, we have only 161 days worth of data.
-```{r}
+# 161 days of data
 difftime(x$Date[nrow(x)],x$Date[1])
+
 ```
 
-We also see most sales happen around 12:45pm and coffee is by far the most popular item.
-
-# Exploration
-Let's see what we can glean looking at various manipulations of the data we have available.
+# EDA
+Let's see what we can glean looking at various manipulations of the data we have available. Most of the analyses will be plotting total items or specific items sold per unit of time, as this is the most simple use of the data.  
 
 ## Item frequency
+No real surprises with item frequency, although the `NONE` is slightly odd.
+It should be noted that when using `count` we're adding all instances of that particular item. We are not discriminating between different sales receipts. So if one person has ordered 5 coffees, we count coffee 5 times rather than once. Right now this doesn't bother me, we can look at it later on.
+
 ```{r}
 x1 <- x %>% 
   group_by(Item) %>% 
@@ -89,13 +107,9 @@ x1 <- x %>%
 x1
 ```
 
-No real surprises with frequency, although the `NONE` is slightly odd.
-It should be noted that when using `count` we're adding all instances of that particular item. We are not discriminating between different sales receipts. So if one person has ordered 5 coffees, we count coffee 5 times rather than once. Right now this doesn't bother me, we can look at it later on.
+## Items sold per day
+Plotting total line items sold per day shows some obvious peaks and valleys. Saturday is the big sales day for this bakery, followed by Sunday.  
 
-# Sales over time
-We have an idea of what we're selling so now let's plot it against our various measures of time. Each transaction lists both time and date, we'll first take a large step back and look at sales over all time, followed by a closer daily look.
-
-## All time
 ```{r}
 # Line items sold per day
 x2 <- x %>% 
@@ -110,10 +124,8 @@ x2 <- x %>%
 x2
 ```
 
-Plotting total line items sold per day shows some obvious peaks and valleys. Saturday is the big sales day for this bakery, followed by Sunday.
-
-## Weekly
-Let's zoom in a little bit to take a closer look. Let's try a weekly view by stacking total sales based on weekday sold.
+## Items sold per weekday
+We can confirm the general pattern we saw above by grouping by weekdays. It turns out Saturdays are still the top sales days with Sundays close behind. Mondays, Tuesdays, and Wednesdays are roughly tied; and the end of the week ramps sales on Thursdays and Fridays.
 
 ```{r}
 # Total line items sold per weekday
@@ -129,30 +141,10 @@ x3 <- x %>%
 x3
 ```
 
-We confirm the general pattern we saw above: our top sales days are on Saturdays, with Sundays and Fridays following behind. Mondays through Thursdays are all roughly similar in total line items sold. Essentially, we've averaged all values creating less drastic peaks as we saw above.
+## Unique transactions per weekday
+So far our item totals have been based on... total items. Taking the total coffees sold per week, or total sandwiches sold per week gives us some great insight on how we might want to prepare ordering items for next week. It does not, however, give us an idea of how busy the store is on a certain day.  
 
-Maybe we should try making the differences more drastic for easier comparison?
-One approach might be to filter for top sales days first, and then add all total line items sold by weekday.
-
-```{r}
-# Top 50 transactions days per weekday
-x6 <- x %>% 
-  group_by(Date) %>% 
-  summarise(Count= n()) %>% 
-  arrange(desc(Count)) %>% 
-  slice(1:50) %>% 
-  mutate(wday = wday(Date,label=T)) %>% 
-  ggplot(aes(x=wday,y=Count,fill=wday))+
-  theme_fivethirtyeight()+
-  geom_bar(stat="identity")+
-  ggtitle("Top 50 sales days by weekday")+
-  theme(legend.position="none")
-x6
-```
-
-It's clear that Saturdays are much more likely to be top sales days, followed by Sundays and Fridays. This graph could be slightly misleading though and if not interepreted correctly could lead to some false conclusions about how slow weekdays are when compared to the weekends (they aren't as slow as this comparison makes out).
-
-Let's change direction. Remember we talked about line items versus unique sales? Let's try filtering for distinct transactions and see how that changes things.
+Plotting unique transactions per day is a more fair representation of 'business' throughout the week. We see below that Saturday maintains the top position with, this time, Friday following close behind. In contrast to before, Sunday sales are more in line with the Monday through Thursday! This could indicate a couple things (among others): there are group lunches in which one person foots the bill; hungrier people come in on Sundays, therefore ordering more items; people may be ordering takeout for groups at another location.
 
 ```{r}
 # Total unique transactions per weekday
@@ -169,9 +161,11 @@ x4 <- x %>%
 x4
 ```
 
-This is a more fare representation of 'business' throughout the week. Saturday is still the top dog. Sunday falls behind Friday, however, in contrast to what we saw above comparing line items. We might guess that on Sunday we have more generous customers buying for their friends, or even that Sunday tends to be a day when customers buy more than 1 or 2 items.
+## Unique items per purchase
+We can test our hypothesis above by calculating how many items, on average, are purchased per transaction. 
 
-That does bring to mind a good question, how many items to people purchase on average? 
+It turns out that people are definitely ordering more on Sundays. We see Sundays average total items per transaction measure is at 2.6, with the rest of the weekdays showing total transactions between 2.1 to 2.3. In general, people are more likely to buy an additional, 3rd item on Sundays.
+
 ```{r}
 x5.1 <- x %>% 
   mutate(Day = wday(Date,label=T)) %>% 
@@ -198,12 +192,14 @@ ggplot(x5.3,aes(x=Day,y=Items.Trans,fill=Day))+
 
 ```
 
-Indeed, people tend to buy more items on Sundays! We also have a slight increase for Saturdays as well when compared to the rest of the week.
+## Hourly sales
+Similar to above, we calculate total items sold per hour, unique transactions per hour, and total items per transaction per hour.  
 
-Let's zoom in further.
+Our items per hour and unique transactions per hour don't seem to differ much throughout the day except in regards to scale. The majority of items sold seems to happen around 11:00am, with the lunch rush occuring between 9:00am and 2:00pm.  
 
-## Hourly
-We do a simple line items sold per hour plot and unsurprisingly see that most items are sold around lunch time.
+When we look at our hourly total items per transaction, we see that on the tail ends of the spectrum people are most likely to stop in and buy a single item, a coffee maybe. The closer we get towards lunchtime hours, the more likely we are to see multiple items being purchased.
+
+### Items per hour
 ```{r}
 # Line items sold per Hour
 x7 <- x %>%
@@ -218,7 +214,7 @@ x7 <- x %>%
 x7
 ```
 
-Can we learn anything about unique transactions, as we did above with the date data?
+### Unique transactions per hour
 ```{r}
 # Unique transactions per Hour
 x8 <- x %>% 
@@ -234,7 +230,7 @@ x8 <- x %>%
 x8
 ```
 
-We really don't see much of a differece besides scale. Again, let's see how many items are bought with each transaction.
+### Total items per transaction per hour
 ```{r}
 x9.1 <- x %>% 
   mutate(Hour = as.factor(hour(Time)))%>% 
@@ -262,10 +258,8 @@ x9 <-
 x9
 ```
 
-People buy the most items per transaction between 10am and 5pm, these seem likes standard hours people might walk in to grab a bite to eat. Before 10am most are likely buying a single item like coffee. Similarly with after 5pm.
-
-## Combination
-Let's see if we can visualize transaction density per hour for all days of the week using a ridge plot
+## Transaction density per hour per day
+We can use a ridge plot to summarize some of the key points we saw above. We see that Saturday seems to have the largest, most constant density throughout the day. While Sunday has a very sharp peak in transactions around lunchtime but tapers off quicker.  
 
 ```{r,message=FALSE}
 x10 <- x %>% 
@@ -282,16 +276,12 @@ x10 <- x %>%
 x10
 ```
 
-The ridge plot gives a nice summary of what we've seen in the above bar charts without overly distorting scales. 
-
-Saturday has a wider breadth and sees most transactions overall.
-
-Sunday falls close being with Sunday lunch having the most dense transaction peak.
-
-It's time for a new take on the data using Market Basket Analysis.
-
 # Market Basket Analysis
-Let's import our transaction data to the appropriate format and check it out.
+In order to use our data in MBA we need to convert it to the correct format.  
+
+Upon importing, we find data that agree with our previousn observations. We also see that most transactions are either one or two items. We also see 3 generous, 10-item transactions. They must have bought for the office, how nice!
+
+We can visualize our most popular items similarly to how we did above using the `itemFrequencyPlot` from the `arules` package.
 
 ## Import and peak
 ```{r}
@@ -301,39 +291,36 @@ y <- read.transactions("data/BreadBasket_DMS.csv",
                        sep=","
                        )
 summary(y)
-```
 
-We see our most frequent items agree with what we found above. And that most transactions are either one or two items, including 3 lucky people who apparently bought for the entire office.
-
-If we want to visualize the frequent items using `arules` we can.
-We need to import our transaction data, and we can go ahead and reaffirm our previous findings by using the `itemFrequencyPlot` function to find the top 5 most popular items
-```{r}
+# item frequencies  
 par(mfrow=c(1,2))
 itemFrequencyPlot(y,topN=5,type="relative")
 itemFrequencyPlot(y,topN=5,type="absolute")
 ```
 
 ## Support and Confidence
-Now before we perform our MBA we need to determine reasonable values for the support and confidence values. 
+We'll need to define optimal *support* and *confidence* values. Before diving in too deeply we should define them.
 
-__Support:__ An itemset with high support means it appears in our transactions frequently. High support is direclty related to the frequency an item appears. For example, coffee probably has very high support.  
+  * **Support:** An itemset with high support means it appears in our transactions frequently. High support is directly related to the frequency an item appears. For example, coffee probably has very high support.  
 
-_Support = n(X->Y)/N_  
-Where n(X->Y) equals the count of both X and Y (the total itemset) appearing together. And N equals the total number of transactions.
+$$Support = \frac {n(X\Rightarrow Y)} {N}$$
+Where $n(X\rightarrow Y)$ equals the count of both X and Y (the total itemset) appearing together. And $N$ equals the total number of transactions.
 
-__Confidence:__ Is the strength of our association rule. For example, a confidence of 1 implies that when the LHS item is purchased, the RHS item is purchased 100% of the time.
+  * **Confidence:** Is the strength of our association rule. For example, a confidence of 1 implies that when the LHS item is purchased, the RHS item is purchased 100% of the time. 
 
+$$Confidence = \frac {n(X\Rightarrow Y)} {n(X)}$$
 _Confidence = n(X->Y)/n(X)_  
-Where n(X->Y) equals the count of both X and Y (the total itemset) appearing together. And n(X) equals the count of X (the LHS) appearing in transactions.  
+Where $n(X\rightarrow Y)$ equals the count of both X and Y (the total itemset) appearing together. And $n(X)$ equals the count of X (the LHS) appearing in transactions.  
 
-So let's pin down our `support` value first. 
+So let's pin down our *support* value first. 
 ```{r}
 summary(itemFrequency(y))
 ```
 
 Remember, item frequency is directly related to support. We can see the distribution of values above, with the max frequency at 0.4820079. This is probably coffee which we saw above appears greater than 40% of the time in purchases. 
 
-Since our maximum support is 48%, let's pick a value around 30% to start. We can find this value by dividing 30 by the total amount of transactions.
+Since our maximum support is 48%, let's pick a value around 30% to start. We can find this value by dividing 30 by the total amount of transactions.  
+
 ```{r}
 30/length(y)
 ```
@@ -348,10 +335,10 @@ rules
 
 ## Inspect rules
 
-We're give a set of 20 rules, which is quite managable. Let's take a look.
+We're given a set of 20 rules, which is quite managable. Let's take a look.
 
 ```{r}
-inspect(head(rules,by="support",n=10))
+inspect(head(rules,by="support"))
 ```
 
 Cake, pastry, and sandwich are most commonly bought in tandem with Coffee. Oddly, Juice is also frequently bought with Coffee... We can only assume that this is due to one person buying for another and hopefully not that some monster is drinking drinking both simultaneously.
@@ -373,11 +360,11 @@ inspect(head(rules,by="lift"))
 ## Lift
 The lift measure is related closely to the confidence measure.
 
-__Lift__ is the ratio of *Confidence* to *Expected Confidence* = Number of transactions with RHS / total transactions.
-
-A lift ratio larger than 1.0 implies the relationship between LHS and RHS is significant and not simply chance. The larger the lift ratio, the more significant the relationship between LHS and RHS. Our lift values are not incredibly high, though high enough to rule out random chance.
-
-If we really want to find some high lift values we can refine our ruleset and adjust our support and confidence parameters.
+  * **Lift:** is the ratio of *Confidence* to *Expected Confidence*. A high lift value implies that there is a greater chance that our rule is not simply a coincidence. The larger the lift ratio, the more significant the relationship between LHS and RHS. 
+  
+  $$Lift = \frac{Support(X\Rightarrow Y)} {Support(X) * Support(Y)}$$
+  
+Though our lift values are not incredibly high, they may be high enough to rule out random chance. If we really want to find some high lift values we can refine our ruleset and adjust our support and confidence parameters.
 ```{r}
 rules2 <- apriori(y,parameter=list(support=0.00045,confidence=.9))
 inspect(head(rules2,by="lift",n=10))
@@ -421,18 +408,22 @@ plot(rules, method="paracoord", control=list(reorder=TRUE))
 
 # Conclusions
 Taking a cursory look at the data and doing some relatively simple graphical analyses, we were able to discern which days were busiest, and at what times throughout the day that most transactions were taking place.
-```{r}
+```{r echo=F}
 x10
 ```
 
 This data might be useful when scheduling staff and determining when additional staff is required, or when only minimal staff is needed. Of course, the bakery had probably already figured this out in a couple weeks of business. The graphical representation does give it a nice concrete feeling.
 
 More useful is the number or items per transaction throughout the day.
-```{r}
+```{r echo=F}
 x9
 ````
 
-As a business we obviously want to sell more items. Some potential lines of action might be to incentivise the purhcase of additional items before 10am and after 5pm. Between the hours of 10am and 5pm we want to incentivise purchasing a 3rd item.
+As a business we obviously want to sell more items. We see most transactions consist of either one or 2 purchases. If we implemented some kind of lunch special during peak hours that incentivizes a 3rd item (preferably with high support already), we may push the total average transactions from 2 to 3.  
 
-The Market Basket Analysis shows that {Toast} => {Coffee} is a common occurence. Also that {Cake, Sandwich} => {Coffee} has high lift and confidence but low support. We might increase the likelihood of a 3rd item purchased by introducing a Toast/Cake/Coffee or a Sandwich/Cake/Coffee special at discounted price.
+It also might be wortwhile to target off-hours by creating a two-item "combo" which pushes people from buying just the single coffee item to coffee plus another high support item.  
+
+Our MBA shows that $Toast \Rightarrow Coffee$ is a common occurence. Also that $Cake, Sandwich \Rightarrow Coffee$ has high lift and confidence but low support. We might increase the likelihood of a 3rd item purchased by introducing a Toast/Cake/Coffee or a Sandwich/Cake/Coffee special at discounted price.
+
+
 
